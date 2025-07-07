@@ -1,1 +1,0 @@
-# ministero-interno-bot
