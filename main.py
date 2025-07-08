@@ -34,7 +34,8 @@ async def on_ready():
         print(f"[DEBUG] Errore sincronizzazione: {e}")
     print(f"[DEBUG] Bot connesso come {bot.user}")
 
-# ✅ /pec
+# /pec
+
 class PecForm(ui.Modal, title="Invio Comunicazione PEC"):
     contenuto = ui.TextInput(
         label="✒️ Contenuto del messaggio",
@@ -83,6 +84,57 @@ async def pec(interaction: Interaction, destinatario: discord.Member):
         return
 
     await interaction.response.send_modal(PecForm(destinatario))
+
+# PORTO D'ARMA ESITO
+
+    @app_commands.command(name="esito-porto-armi", description="Invia esito porto d'armi in DM")
+    @app_commands.describe(
+        destinatario="Utente a cui inviare l'esito",
+        nome_funzionario="Nome del funzionario",
+        esito="Esito della richiesta (ACCOGLIE o RIGETTA)",
+        nome_richiedente="Nome del richiedente",
+        data_emissione="Data di emissione dell'esito (formato GG/MM/AAAA)"
+    )
+    async def esito_portodarma(
+        self,
+        interaction: discord.Interaction,
+        destinatario: discord.User,
+        nome_funzionario: str,
+        esito: str,
+        nome_richiedente: str,
+        data_emissione: str
+    ):
+        esito = esito.upper()
+        if esito not in ["ACCOGLIE", "RIGETTA"]:
+            await interaction.response.send_message("❌ L'esito deve essere 'ACCOGLIE' o 'RIGETTA'.", ephemeral=True)
+            return
+
+        embed = discord.Embed(
+            title="PEC UFFICIALE",
+            description=(
+                "**VISTO** il regolamento sul rilascio del porto d'armi emesso in data 02/06/2024\n"
+                "**VISTO** l'articolo 27 del testo unico delle leggi di pubblica sicurezza\n\n"
+                f"Il funzionario **{nome_funzionario}**\n\n"
+                f"**{esito}**\n\n"
+                f"La richiesta per il porto d'armi del sig. **{nome_richiedente}**.\n\n"
+                f"Lì, d'ufficio, il funzionario **{nome_funzionario}**\n"
+                f"**{data_emissione}**"
+            ),
+            color=0x2b2d31
+        )
+
+        embed.set_footer(text="Sistema di Comunicazioni Dirette – Ministero dell'Interno")
+        file = discord.File("/mnt/data/c41ba5d2-654d-4a22-91ad-a8b0200e95c3.png", filename="ministero.png")
+        embed.set_thumbnail(url="attachment://ministero.png")
+
+        try:
+            await destinatario.send(embed=embed, file=file)
+            await interaction.response.send_message(f"✅ Esito inviato a {destinatario.mention} in DM.", ephemeral=True)
+        except discord.Forbidden:
+            await interaction.response.send_message("❌ Impossibile inviare il messaggio: il destinatario ha i DM chiusi.", ephemeral=True)
+
+async def setup(bot):
+    await bot.add_cog(EsitoPortoDArma(bot))
 
 
 if __name__ == "__main__":
