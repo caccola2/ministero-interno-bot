@@ -120,10 +120,10 @@ async def esito_portodarma(
             f"**{data_emissione}**"
         ),
         color=0x2b2d31
-    )
-
-    embed.set_footer(text="Sistema di Comunicazioni Dirette – Ministero dell'Interno")
-    embed.set_thumbnail(url="https://images-ext-1.discordapp.net/external/xGLWVd2zFMgVyzlmlOftc5PQKUO7tz7vq5GnBWqNThQ/%3Fformat%3Dwebp%26quality%3Dlossless%26width%3D706%26height%3D706/https/images-ext-1.discordapp.net/external/YQkJmHL1IFP5GQs6M_v-wnUCdYAS860VpUDrLqQSKxc/%253Fformat%253Dwebp%2526quality%253Dlossless%2526width%253D565%2526height%253D565/https/images-ext-1.discordapp.net/external/po18tbb9zrjuaU74rCFYf9FsOwn0cmlrE1MOpxtgNPA/%25253Fsize%25253D4096/https/cdn.discordapp.com/icons/1244219836574208080/9ef51275997c0ecac492c9581d98ac37.png?format=webp&quality=lossless&width=530&height=530")
+   embed.set_footer(
+            text="Sistema di Comunicazioni Dirette – Ministero dell'Interno",
+            icon_url=interaction.client.user.avatar.url  # Logo del bot
+        )
 
     try:
         await destinatario.send(embed=embed, file=file)
