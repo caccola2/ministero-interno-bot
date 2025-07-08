@@ -122,8 +122,7 @@ async def esito_portodarma(
         color=0x2b2d31
    embed.set_footer(
             text="Sistema di Comunicazioni Dirette – Ministero dell'Interno",
-            icon_url=interaction.client.user.avatar.url  # Logo del bot
-        )
+            icon_url=interaction.client.user.avatar.url )
 
     try:
         await destinatario.send(embed=embed, file=file)
