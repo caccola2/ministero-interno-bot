@@ -123,8 +123,7 @@ async def esito_portodarma(
     )
 
     embed.set_footer(text="Sistema di Comunicazioni Dirette – Ministero dell'Interno")
-    file = discord.File("/mnt/data/c41ba5d2-654d-4a22-91ad-a8b0200e95c3.png", filename="ministero.png")
-    embed.set_thumbnail(url="attachment://ministero.png")
+    embed.set_thumbnail(url="https://images-ext-1.discordapp.net/external/xGLWVd2zFMgVyzlmlOftc5PQKUO7tz7vq5GnBWqNThQ/%3Fformat%3Dwebp%26quality%3Dlossless%26width%3D706%26height%3D706/https/images-ext-1.discordapp.net/external/YQkJmHL1IFP5GQs6M_v-wnUCdYAS860VpUDrLqQSKxc/%253Fformat%253Dwebp%2526quality%253Dlossless%2526width%253D565%2526height%253D565/https/images-ext-1.discordapp.net/external/po18tbb9zrjuaU74rCFYf9FsOwn0cmlrE1MOpxtgNPA/%25253Fsize%25253D4096/https/cdn.discordapp.com/icons/1244219836574208080/9ef51275997c0ecac492c9581d98ac37.png?format=webp&quality=lossless&width=530&height=530")
 
     try:
         await destinatario.send(embed=embed, file=file)
