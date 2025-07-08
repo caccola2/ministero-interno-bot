@@ -87,7 +87,7 @@ async def pec(interaction: Interaction, destinatario: discord.Member):
 
 # PORTO D'ARMA ESITO
 
- @bot.tree.command(name="esito-porto-armi", description="Invia esito porto d'armi in DM")
+@bot.tree.command(name="esito-porto-armi", description="Invia esito porto d'armi in DM")
 @app_commands.describe(
     destinatario="Utente a cui inviare l'esito",
     nome_funzionario="Nome del funzionario",
@@ -103,11 +103,6 @@ async def esito_portodarma(
     nome_richiedente: str,
     data_emissione: str
 ):
-    RUOLI_AUTORIZZATI = [1244227229496643677]
-    if not any(r.id in RUOLI_AUTORIZZATI for r in interaction.user.roles):
-        await interaction.response.send_message("Non hai i permessi per usare questo comando.", ephemeral=True)
-        return
-
     esito = esito.upper()
     if esito not in ["ACCOGLIE", "RIGETTA"]:
         await interaction.response.send_message("❌ L'esito deve essere 'ACCOGLIE' o 'RIGETTA'.", ephemeral=True)
@@ -136,6 +131,8 @@ async def esito_portodarma(
         await interaction.response.send_message(f"✅ Esito inviato a {destinatario.mention} in DM.", ephemeral=True)
     except discord.Forbidden:
         await interaction.response.send_message("❌ Impossibile inviare il messaggio: il destinatario ha i DM chiusi.", ephemeral=True)
+
+
 
 if __name__ == "__main__":
     token = os.getenv("MINISTERO_TOKEN")
