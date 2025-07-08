@@ -87,7 +87,7 @@ async def pec(interaction: Interaction, destinatario: discord.Member):
 
 # PORTO D'ARMA ESITO
 
-   @bot.tree.command(name="esito-porto-armi", description="Invia esito porto d'armi in DM")
+ @bot.tree.command(name="esito-porto-armi", description="Invia esito porto d'armi in DM")
 @app_commands.describe(
     destinatario="Utente a cui inviare l'esito",
     nome_funzionario="Nome del funzionario",
@@ -136,7 +136,6 @@ async def esito_portodarma(
         await interaction.response.send_message(f"✅ Esito inviato a {destinatario.mention} in DM.", ephemeral=True)
     except discord.Forbidden:
         await interaction.response.send_message("❌ Impossibile inviare il messaggio: il destinatario ha i DM chiusi.", ephemeral=True)
-
 
 if __name__ == "__main__":
     token = os.getenv("MINISTERO_TOKEN")
