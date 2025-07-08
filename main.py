@@ -108,21 +108,23 @@ async def esito_portodarma(
         await interaction.response.send_message("❌ L'esito deve essere 'ACCOGLIE' o 'RIGETTA'.", ephemeral=True)
         return
 
-    embed = discord.Embed(
-        title="PEC UFFICIALE",
-        description=(
-            "**VISTO** il regolamento sul rilascio del porto d'armi emesso in data 02/06/2024\n"
-            "**VISTO** l'articolo 27 del testo unico delle leggi di pubblica sicurezza\n\n"
-            f"Il funzionario **{nome_funzionario}**\n\n"
-            f"**{esito}**\n\n"
-            f"La richiesta per il porto d'armi del sig. **{nome_richiedente}**.\n\n"
-            f"Lì, d'ufficio, il funzionario **{nome_funzionario}**\n"
-            f"**{data_emissione}**"
-        ),
-        color=0x2b2d31
-   embed.set_footer(
-            text="Sistema di Comunicazioni Dirette – Ministero dell'Interno",
-            icon_url=interaction.client.user.avatar.url )
+ embed = discord.Embed(
+    title="PEC UFFICIALE",
+    description=(
+        "**VISTO** il regolamento sul rilascio del porto d'armi emesso in data 02/06/2024\n"
+        "**VISTO** l'articolo 27 del testo unico delle leggi di pubblica sicurezza\n\n"
+        f"Il funzionario **{nome_funzionario}**\n\n"
+        f"**{esito}**\n\n"
+        f"La richiesta per il porto d'armi del sig. **{nome_richiedente}**.\n\n"
+        f"Lì, d'ufficio, il funzionario **{nome_funzionario}**\n"
+        f"**{data_emissione}**"
+    ),
+    color=0x2b2d31
+) 
+
+embed.set_footer(
+    text="Sistema di Comunicazioni Dirette – Ministero dell'Interno",
+    icon_url=interaction.client.user.avatar.url
 
     try:
         await destinatario.send(embed=embed, file=file)
