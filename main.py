@@ -83,6 +83,56 @@ async def esito_portodarma(
         await interaction.response.send_message("❌ Impossibile inviare il messaggio: il destinatario ha i DM chiusi.", ephemeral=True)
 
 
+# GPG ESITO
+
+@bot.tree.command(name="esito-GPG", description="Invia esito GPG in DM")
+@app_commands.describe(
+    destinatario="Utente a cui inviare l'esito",
+    nome_funzionario="Nome del funzionario",
+    esito="Esito della richiesta (ACCOGLIE o RIGETTA)",
+    nome_richiedente="Nome del richiedente",
+    data_emissione="Data di emissione dell'esito (formato GG/MM/AAAA)"
+)
+async def esito_portodarma(
+    interaction: discord.Interaction,
+    destinatario: discord.User,
+    nome_funzionario: str,
+    esito: str,
+    nome_richiedente: str,
+    data_emissione: str
+):
+    esito = esito.upper()
+    if esito not in ["ACCOGLIE", "RIGETTA"]:
+        await interaction.response.send_message("❌ L'esito deve essere 'ACCOGLIE' o 'RIGETTA'.", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title="ESITO RICHIESTA GPG",
+        description=(
+            "**VISTO** il regolamento sul rilascio del porto d'armi emesso in data 02/06/2024\n"
+            "**VISTO** l'articolo 27 del testo unico delle leggi di pubblica sicurezza\n\n"
+            f"Il funzionario **{nome_funzionario}**\n\n"
+            f"**{esito}**\n\n"
+            f"La richiesta per il porto d'armi del sig. **{nome_richiedente}**.\n\n"
+            f"Lì, d'ufficio, il funzionario **{nome_funzionario}**\n"
+            f"**{data_emissione}**"
+        ),
+        color=0x2b2d31
+    )
+
+    embed.set_footer(
+        text="Sistema di Comunicazioni Dirette – Ministero dell'Interno",
+        icon_url=interaction.client.user.avatar.url if interaction.client.user.avatar else None
+    )
+
+    try:
+        await destinatario.send(embed=embed)
+        await interaction.response.send_message(f"✅ Esito inviato a {destinatario.mention} in DM.", ephemeral=True)
+    except discord.Forbidden:
+        await interaction.response.send_message("❌ Impossibile inviare il messaggio: il destinatario ha i DM chiusi.", ephemeral=True)
+
+
+
 
 if __name__ == "__main__":
     token = os.getenv("MINISTERO_TOKEN")
