@@ -1,11 +1,11 @@
 import os
 import discord
 from discord.ext import commands
-from discord import app_commands, ui, Interaction, TextStyle
+from discord import app_commands, Interaction
 from flask import Flask
 from threading import Thread
-import unicodedata
 
+# ─── Flask keep-alive server ───────────────────────────────────────────────
 app = Flask('')
 
 @app.route('/')
@@ -17,6 +17,7 @@ def run():
 
 Thread(target=run).start()
 
+# ─── Discord bot setup ─────────────────────────────────────────────────────
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
@@ -34,8 +35,7 @@ async def on_ready():
         print(f"[DEBUG] Errore sincronizzazione: {e}")
     print(f"[DEBUG] Bot connesso come {bot.user}")
 
-# PORTO D'ARMA ESITO
-
+# ─── Porto d'armi ──────────────────────────────────────────────────────────
 @bot.tree.command(name="esito-porto-armi", description="Invia esito porto d'armi in DM")
 @app_commands.describe(
     destinatario="Utente a cui inviare l'esito",
@@ -44,8 +44,8 @@ async def on_ready():
     nome_richiedente="Nome del richiedente",
     data_emissione="Data di emissione dell'esito (formato GG/MM/AAAA)"
 )
-async def esito_portodarma(
-    interaction: discord.Interaction,
+async def esito_porto_armi(
+    interaction: Interaction,
     destinatario: discord.User,
     nome_funzionario: str,
     esito: str,
@@ -82,10 +82,8 @@ async def esito_portodarma(
     except discord.Forbidden:
         await interaction.response.send_message("❌ Impossibile inviare il messaggio: il destinatario ha i DM chiusi.", ephemeral=True)
 
-
-# GPG ESITO
-
-@bot.tree.command(name="esito-GPG", description="Invia esito GPG in DM")
+# ─── GPG ────────────────────────────────────────────────────────────────────
+@bot.tree.command(name="esito-gpg", description="Invia esito GPG in DM")
 @app_commands.describe(
     destinatario="Utente a cui inviare l'esito",
     nome_funzionario="Nome del funzionario",
@@ -93,8 +91,8 @@ async def esito_portodarma(
     nome_richiedente="Nome del richiedente",
     data_emissione="Data di emissione dell'esito (formato GG/MM/AAAA)"
 )
-async def esito_portodarma(
-    interaction: discord.Interaction,
+async def esito_gpg(
+    interaction: Interaction,
     destinatario: discord.User,
     nome_funzionario: str,
     esito: str,
@@ -131,9 +129,7 @@ async def esito_portodarma(
     except discord.Forbidden:
         await interaction.response.send_message("❌ Impossibile inviare il messaggio: il destinatario ha i DM chiusi.", ephemeral=True)
 
-
-
-
+# ─── Avvio bot ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     token = os.getenv("MINISTERO_TOKEN")
     if token:
