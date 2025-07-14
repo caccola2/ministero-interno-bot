@@ -132,11 +132,8 @@ def ha_permessi(member):
     return any(role.id in PERMESSI_AUTORIZZATI for role in member.roles)
 
 # ─── Login asincrono al client Roblox ────────────────────────────
-async def get_client():
-    client = Client()
-    await client.login(ROBLOX_COOKIE)
-    return client
-
+def get_client():
+    return Client(ROBLOX_COOKIE)
 # ─── Funzione generica per gestire azioni e feedback ─────────────
 async def handle_action(interaction, azione, messaggio_successo, username):
     try:
