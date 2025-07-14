@@ -28,27 +28,6 @@ intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 tree = bot.tree
 
-# ─── Configurazioni Gruppo Roblox ──────────────────────────────────────────
-group_id = 9927486
-allowed_role_id = 1244221476719296604  # Ruolo Discord con permessi
-
-def get_client():
-    return Client(cookie="COOKIE")  # Inserisci il cookie valido
-
-async def handle_action(interaction: Interaction, action_func, action_name, username: str):
-    try:
-        await action_func()
-        await interaction.response.send_message(f"L'utente **{username}** è stato {action_name} correttamente.", ephemeral=True)
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 429:
-            retry_after = int(e.response.headers.get("Retry-After", "5"))
-            await interaction.response.send_message(
-                f"⚠️ Rate limit di Roblox. Riprova tra **{retry_after} secondi**.", ephemeral=True)
-        else:
-            await interaction.response.send_message(f"❌ Errore HTTP: `{str(e)}`", ephemeral=True)
-    except Exception as e:
-        await interaction.response.send_message(f"❌ Errore generico: `{str(e)}`", ephemeral=True)
-
 # ─── Comando: Esito Porto d'Armi ───────────────────────────────────────────
 @tree.command(name="esito-porto-armi", description="Invia esito porto d'armi in DM")
 @app_commands.describe(
@@ -139,17 +118,38 @@ async def esito_gpg(
     except discord.Forbidden:
         await interaction.response.send_message("❌ Il destinatario ha i DM chiusi.", ephemeral=True)
 
-# ─── Costanti ──────────────────────────────────────────────────────────────
-PERMESSI_AUTORIZZATI = [
-    1226305676708679740,  # Ministero
-    1244221458096455730   # Altro ruolo autorizzato
-]
+# Inserisci il tuo token di accesso ROBLOX (es: da variabile d'ambiente o direttamente qui)
+ROBLOX_COOKIE = os.getenv("ROBLOX_COOKIE")  # oppure: "YOUR_ROBLOSECURITY_COOKIE"
+group_id = 8730810  # ID fisso del gruppo
 
-# ─── Funzione per il controllo permessi ────────────────────────────────────
+bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
+tree = bot.tree
+
+# ─── Lista ruoli Discord autorizzati ─────────────────────────────
+PERMESSI_AUTORIZZATI = [1226305676708679740, 1244221458096455730]
+
 def ha_permessi(member):
     return any(role.id in PERMESSI_AUTORIZZATI for role in member.roles)
 
-# ─── Comando: Set Group Role (per nome) ─────────────────────────────────────
+# ─── Login asincrono al client Roblox ────────────────────────────
+async def get_client():
+    client = Client()
+    await client.login(ROBLOX_COOKIE)
+    return client
+
+# ─── Funzione generica per gestire azioni e feedback ─────────────
+async def handle_action(interaction, azione, messaggio_successo, username):
+    try:
+        await azione()
+        await interaction.response.send_message(
+            f"✅ Utente **{username}** {messaggio_successo}.", ephemeral=True
+        )
+    except Exception as e:
+        await interaction.response.send_message(
+            f"❌ Errore durante l'esecuzione dell'azione: {e}", ephemeral=True
+        )
+
+# ─── Comando: Set Group Role ─────────────────────────────────────
 @tree.command(name="set_group_role", description="Imposta un ruolo specifico a un utente nel gruppo Roblox")
 @app_commands.describe(username="Username dell'utente", rank_name="Nome del ruolo nel gruppo Roblox")
 async def set_group_role(interaction: Interaction, username: str, rank_name: str):
@@ -157,7 +157,7 @@ async def set_group_role(interaction: Interaction, username: str, rank_name: str
     if not member or not ha_permessi(member):
         return await interaction.response.send_message("⛔ Non hai il permesso per usare questo comando.", ephemeral=True)
 
-    client = get_client()
+    client = await get_client()
     user = await client.get_user_by_username(username)
     group = await client.get_group(group_id)
 
@@ -174,8 +174,7 @@ async def set_group_role(interaction: Interaction, username: str, rank_name: str
         username
     )
 
-
-# ─── Comando: Accept Group ─────────────────────────────────────────────────
+# ─── Comando: Accept Group ───────────────────────────────────────
 @tree.command(name="accept_group", description="Accetta un utente nel gruppo Roblox e assegna 'Porto d'Arma'")
 @app_commands.describe(username="Username dell'utente da accettare")
 async def accept_group(interaction: Interaction, username: str):
@@ -183,7 +182,7 @@ async def accept_group(interaction: Interaction, username: str):
     if not member or not ha_permessi(member):
         return await interaction.response.send_message("⛔ Non hai il permesso per usare questo comando.", ephemeral=True)
 
-    client = get_client()
+    client = await get_client()
     user = await client.get_user_by_username(username)
     group = await client.get_group(group_id)
 
@@ -204,8 +203,7 @@ async def accept_group(interaction: Interaction, username: str):
         username
     )
 
-
-# ─── Comando: Kick Group ─────────────────────────────────────────────────
+# ─── Comando: Kick Group ─────────────────────────────────────────
 @tree.command(name="kick_group", description="Rimuove un utente dal gruppo Roblox")
 @app_commands.describe(username="Username dell'utente da rimuovere")
 async def kick_group(interaction: Interaction, username: str):
@@ -213,7 +211,7 @@ async def kick_group(interaction: Interaction, username: str):
     if not member or not ha_permessi(member):
         return await interaction.response.send_message("⛔ Non hai il permesso per usare questo comando.", ephemeral=True)
 
-    client = get_client()
+    client = await get_client()
     user = await client.get_user_by_username(username)
     group = await client.get_group(group_id)
 
@@ -226,7 +224,6 @@ async def kick_group(interaction: Interaction, username: str):
         "rimosso dal gruppo",
         username
     )
-
 
 # ─── Avvio bot ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
