@@ -29,7 +29,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 tree = bot.tree
 
 # ─── Configurazioni Gruppo Roblox ──────────────────────────────────────────
-group_id = 8730810
+group_id = 9927486
 allowed_role_id = 1244221476719296604  # Ruolo Discord con permessi
 
 def get_client():
