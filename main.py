@@ -129,6 +129,82 @@ async def esito_gpg(
     except discord.Forbidden:
         await interaction.response.send_message("❌ Impossibile inviare il messaggio: il destinatario ha i DM chiusi.", ephemeral=True)
 
+# ─── GRUOP COMMAND ────────────────────────────────────────────────────────────────────
+
+group_id = 8730810
+allowed_role_id = 1244221476719296604 
+
+def get_client():
+    return Client(cookie="COOKIE") 
+
+async def handle_action(ctx, action_func, action_name, username):
+    try:
+        await action_func()
+        await ctx.send(f"L'utente **{username}** è stato {action_name} correttamente.", ephemeral=True)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 429:
+            retry_after = int(e.response.headers.get("Retry-After", "5"))
+            await ctx.send(
+                f"⚠️ Roblox ha bloccato temporaneamente le richieste (rate limit). Riprova tra **{retry_after} secondi**.",
+                ephemeral=True
+            )
+        else:
+            await ctx.send(f"❌ Errore HTTP durante l'operazione: `{str(e)}`", ephemeral=True)
+    except Exception as e:
+        await ctx.send(f"❌ Errore generico durante l'operazione: `{str(e)}`", ephemeral=True)
+
+@slash_command(name="set_group_role", description="Imposta un ruolo specifico a un utente nel gruppo Roblox")
+@slash_option(name="username", description="Username dell'utente", required=True, opt_type=OptionType.STRING)
+@slash_option(name="rank_id", description="ID del ruolo nel gruppo Roblox", required=True, opt_type=OptionType.INTEGER)
+async def set_group_role(ctx: SlashContext, username: str, rank_id: int):
+    if allowed_role_id not in [role.id for role in ctx.author.roles]:
+        return await ctx.send("⛔ Non hai il permesso per usare questo comando.", ephemeral=True)
+
+    client = get_client()
+    user = await client.get_user_by_username(username)
+    group = await client.get_group(group_id)
+
+    await handle_action(
+        ctx,
+        lambda: group.set_rank(user, rank_id),
+        f"impostato al ruolo con ID {rank_id}",
+        username
+    )
+
+@slash_command(name="accept_group", description="Accetta un utente nel gruppo Roblox e assegna 'Porto d'Arma'")
+@slash_option(name="username", description="Username dell'utente da accettare", required=True, opt_type=OptionType.STRING)
+async def accept_group(ctx: SlashContext, username: str):
+    if allowed_role_id not in [role.id for role in ctx.author.roles]:
+        return await ctx.send("⛔ Non hai il permesso per usare questo comando.", ephemeral=True)
+
+    client = get_client()
+    user = await client.get_user_by_username(username)
+    group = await client.get_group(group_id)
+
+    roles = await group.get_roles()
+    porto_arma_role = next((r for r in roles if r.name.lower() == "porto d'arma"), None)
+
+    if not porto_arma_role:
+        return await ctx.send("❌ Il ruolo 'Porto d'Arma' non è stato trovato nel gruppo Roblox.", ephemeral=True)
+
+    async def accept_and_set_role():
+        await group.accept_user(user)
+        await group.set_rank(user, porto_arma_role.id)
+
+    await handle_action(ctx, accept_and_set_role, "accettato e assegnato il ruolo 'Porto d'Arma'", username)
+
+@bot.event
+async def on_ready():
+    await bot.wait_until_ready()
+    try:
+        await bot.add_cog(GroupManagement(bot))
+        synced = await bot.tree.sync()
+        print(f"[DEBUG] Comandi sincronizzati: {len(synced)}")
+    except Exception as e:
+        print(f"[DEBUG] Errore sincronizzazione: {e}")
+    print(f"[DEBUG] Bot pronto come {bot.user}")
+
+
 # ─── Avvio bot ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     token = os.getenv("MINISTERO_TOKEN")
