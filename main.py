@@ -143,7 +143,7 @@ async def esito_gpg(
 @tree.command(name="set_group_role", description="Imposta un ruolo specifico a un utente nel gruppo Roblox")
 @app_commands.describe(username="Username dell'utente", rank_id="ID del ruolo nel gruppo Roblox")
 async def set_group_role(interaction: Interaction, username: str, rank_id: int):
-    if not any(role.id == allowed_role_id for role in interaction.user.roles):
+    if not any(role.name.lower() == "ministero" for role in interaction.user.roles):
         return await interaction.response.send_message("⛔ Non hai il permesso per usare questo comando.", ephemeral=True)
 
     client = get_client()
@@ -161,7 +161,7 @@ async def set_group_role(interaction: Interaction, username: str, rank_id: int):
 @tree.command(name="accept_group", description="Accetta un utente nel gruppo Roblox e assegna 'Porto d'Arma'")
 @app_commands.describe(username="Username dell'utente da accettare")
 async def accept_group(interaction: Interaction, username: str):
-    if not any(role.id == allowed_role_id for role in interaction.user.roles):
+    if not any(role.name.lower() == "ministero" for role in interaction.user.roles):
         return await interaction.response.send_message("⛔ Non hai il permesso per usare questo comando.", ephemeral=True)
 
     client = get_client()
@@ -189,7 +189,7 @@ async def accept_group(interaction: Interaction, username: str):
 @tree.command(name="kick_group", description="Rimuove un utente dal gruppo Roblox")
 @app_commands.describe(username="Username dell'utente da rimuovere")
 async def kick_group(interaction: Interaction, username: str):
-    if not any(role.id == allowed_role_id for role in interaction.user.roles):
+    if not any(role.name.lower() == "ministero" for role in interaction.user.roles):
         return await interaction.response.send_message(
             "⛔ Non hai il permesso per usare questo comando.", ephemeral=True
         )
