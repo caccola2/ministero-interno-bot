@@ -185,6 +185,30 @@ async def accept_group(interaction: Interaction, username: str):
         username
     )
 
+# ─── Comando: Kick Group ─────────────────────────────────────────────────
+@tree.command(name="kick_group", description="Rimuove un utente dal gruppo Roblox")
+@app_commands.describe(username="Username dell'utente da rimuovere")
+async def kick_group(interaction: Interaction, username: str):
+    if not any(role.id == allowed_role_id for role in interaction.user.roles):
+        return await interaction.response.send_message(
+            "⛔ Non hai il permesso per usare questo comando.", ephemeral=True
+        )
+
+    client = get_client()
+    user = await client.get_user_by_username(username)
+    group = await client.get_group(group_id)
+
+    async def kick_user():
+        await group.exile_user(user)
+
+    await handle_action(
+        interaction,
+        kick_user,
+        "rimosso dal gruppo",
+        username
+    )
+
+
 # ─── Evento on_ready ───────────────────────────────────────────────────────
 @bot.event
 async def on_ready():
