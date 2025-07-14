@@ -139,11 +139,22 @@ async def esito_gpg(
     except discord.Forbidden:
         await interaction.response.send_message("❌ Il destinatario ha i DM chiusi.", ephemeral=True)
 
+# ─── Costanti ──────────────────────────────────────────────────────────────
+PERMESSI_AUTORIZZATI = [
+    1226305676708679740,  # Ministero
+    1244221458096455730   # Altro ruolo autorizzato
+]
+
+# ─── Funzione per il controllo permessi ────────────────────────────────────
+def ha_permessi(member):
+    return any(role.id in PERMESSI_AUTORIZZATI for role in member.roles)
+
 # ─── Comando: Set Group Role (per nome) ─────────────────────────────────────
 @tree.command(name="set_group_role", description="Imposta un ruolo specifico a un utente nel gruppo Roblox")
 @app_commands.describe(username="Username dell'utente", rank_name="Nome del ruolo nel gruppo Roblox")
 async def set_group_role(interaction: Interaction, username: str, rank_name: str):
-    if not any(role.name.lower() == "ministero" for role in interaction.user.roles):
+    member = interaction.guild.get_member(interaction.user.id)
+    if not member or not ha_permessi(member):
         return await interaction.response.send_message("⛔ Non hai il permesso per usare questo comando.", ephemeral=True)
 
     client = get_client()
@@ -151,7 +162,6 @@ async def set_group_role(interaction: Interaction, username: str, rank_name: str
     group = await client.get_group(group_id)
 
     roles = await group.get_roles()
-
     matching_role = next((r for r in roles if r.name.lower() == rank_name.lower()), None)
 
     if not matching_role:
@@ -164,11 +174,13 @@ async def set_group_role(interaction: Interaction, username: str, rank_name: str
         username
     )
 
+
 # ─── Comando: Accept Group ─────────────────────────────────────────────────
 @tree.command(name="accept_group", description="Accetta un utente nel gruppo Roblox e assegna 'Porto d'Arma'")
 @app_commands.describe(username="Username dell'utente da accettare")
 async def accept_group(interaction: Interaction, username: str):
-    if not any(role.name.lower() == "ministero" for role in interaction.user.roles):
+    member = interaction.guild.get_member(interaction.user.id)
+    if not member or not ha_permessi(member):
         return await interaction.response.send_message("⛔ Non hai il permesso per usare questo comando.", ephemeral=True)
 
     client = get_client()
@@ -192,14 +204,14 @@ async def accept_group(interaction: Interaction, username: str):
         username
     )
 
+
 # ─── Comando: Kick Group ─────────────────────────────────────────────────
 @tree.command(name="kick_group", description="Rimuove un utente dal gruppo Roblox")
 @app_commands.describe(username="Username dell'utente da rimuovere")
 async def kick_group(interaction: Interaction, username: str):
-    if not any(role.name.lower() == "ministero" for role in interaction.user.roles):
-        return await interaction.response.send_message(
-            "⛔ Non hai il permesso per usare questo comando.", ephemeral=True
-        )
+    member = interaction.guild.get_member(interaction.user.id)
+    if not member or not ha_permessi(member):
+        return await interaction.response.send_message("⛔ Non hai il permesso per usare questo comando.", ephemeral=True)
 
     client = get_client()
     user = await client.get_user_by_username(username)
@@ -215,17 +227,6 @@ async def kick_group(interaction: Interaction, username: str):
         username
     )
 
-
-# ─── Evento on_ready ───────────────────────────────────────────────────────
-@bot.event
-async def on_ready():
-    await bot.wait_until_ready()
-    try:
-        synced = await bot.tree.sync()
-        print(f"[DEBUG] Comandi slash sincronizzati: {len(synced)}")
-    except Exception as e:
-        print(f"[DEBUG] Errore sincronizzazione: {e}")
-    print(f"[DEBUG] Bot connesso come {bot.user}")
 
 # ─── Avvio bot ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
