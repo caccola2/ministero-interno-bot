@@ -177,19 +177,26 @@ async def kick_group(interaction: Interaction, username: str):
         return await interaction.response.send_message("⛔ Non hai il permesso per usare questo comando.", ephemeral=True)
 
     client = get_client()
-    try:
-        user = await client.get_user_by_username(username)
-    except UserDoesNotExistError:
-        return await interaction.response.send_message(f"❌ L'utente Roblox **{username}** non esiste.", ephemeral=True)
-    except Exception as e:
-        return await interaction.response.send_message(f"❌ Errore: {e}", ephemeral=True)
 
     try:
-        group = await client.get_group(group_id)
-        await group.exile_user(user)
-        await interaction.response.send_message(f"✅ L'utente **{username}** è stato rimosso dal gruppo.", ephemeral=True)
+        # Usiamo search_users al posto di get_user_by_username
+        search_results = await client.search_users(username)
+        if not search_results:
+            return await interaction.response.send_message(f"❌ L'utente Roblox **{username}** non esiste.", ephemeral=True)
+        
+        user = search_results[0]
     except Exception as e:
-        await interaction.response.send_message(f"❌ Errore durante la rimozione dal gruppo: {e}", ephemeral=True)
+        print(f"[DEBUG] Errore durante la ricerca utente: {e}")
+        return await interaction.response.send_message(f"❌ Errore durante la ricerca dell'utente: {e}", ephemeral=True)
+
+    group = await client.get_group(group_id)
+
+    await handle_action(
+        interaction,
+        lambda: group.exile_user(user),
+        "rimosso dal gruppo",
+        username
+    )
 
 # ─── Avvio bot ─────────────────────────────────────────────────────────────
 @bot.event
