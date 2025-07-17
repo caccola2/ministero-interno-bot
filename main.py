@@ -118,24 +118,40 @@ async def accept_group(interaction: Interaction, username: str):
             return await interaction.response.send_message(f"❌ L'utente Roblox **{username}** non esiste.", ephemeral=True)
 
         csrf = await get_csrf_token(session)
+        headers = {
+            "x-csrf-token": csrf,
+            "Cookie": f".ROBLOSECURITY={ROBLOX_COOKIE}"
+        }
 
         async def accept_and_rank():
             # Accetta richiesta
-            await session.post(f"https://groups.roblox.com/v1/groups/{GROUP_ID}/users/{user_id}/accept", headers={"x-csrf-token": csrf})
+            accept_resp = await session.post(
+                f"https://groups.roblox.com/v1/groups/{GROUP_ID}/users/{user_id}/accept",
+                headers=headers
+            )
+            if accept_resp.status != 200:
+                text = await accept_resp.text()
+                raise Exception(f"Errore accettazione utente: {accept_resp.status} {text}")
 
             # Prende ruoli
-            async with session.get(f"https://groups.roblox.com/v1/groups/{GROUP_ID}/roles") as r:
+            async with session.get(f"https://groups.roblox.com/v1/groups/{GROUP_ID}/roles", headers=headers) as r:
+                if r.status != 200:
+                    text = await r.text()
+                    raise Exception(f"Errore ottenimento ruoli: {r.status} {text}")
                 data = await r.json()
                 porto_arma_role = next((role for role in data["roles"] if role["name"].lower() == "porto d'arma"), None)
                 if not porto_arma_role:
                     raise Exception("Ruolo 'Porto d'Arma' non trovato")
 
             # Imposta ruolo
-            await session.patch(
+            patch_resp = await session.patch(
                 f"https://groups.roblox.com/v1/groups/{GROUP_ID}/users/{user_id}",
                 json={"roleId": porto_arma_role["id"]},
-                headers={"x-csrf-token": csrf}
+                headers=headers
             )
+            if patch_resp.status != 200:
+                text = await patch_resp.text()
+                raise Exception(f"Errore assegnazione ruolo: {patch_resp.status} {text}")
 
         await handle_action(interaction, accept_and_rank, "accettato e assegnato al ruolo 'Porto d'Arma'", username)
 
