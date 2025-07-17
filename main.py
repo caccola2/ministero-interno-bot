@@ -1,7 +1,7 @@
 import os
 import discord
 from discord.ext import commands
-from discord import app_commands, Interaction
+from discord import app_commands, Interaction, Embed, User
 from flask import Flask
 from threading import Thread
 from ro_py import Client  # pip install ro_py
