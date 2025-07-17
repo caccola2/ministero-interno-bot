@@ -1,7 +1,7 @@
 import os
 import discord
 from discord.ext import commands
-from discord import app_commands, Interaction
+from discord import app_commands, Interaction, Embed, User
 from flask import Flask
 from threading import Thread
 from ro_py import Client 
@@ -118,15 +118,12 @@ async def accept_group(interaction: Interaction, username: str):
         return await interaction.response.send_message("⛔ Non hai il permesso per usare questo comando.", ephemeral=True)
 
     client = get_client()
-   from ro_py.utilities.errors import UserDoesNotExistError
-
-try:
-    user = await client.get_user_by_username(username)
-except UserDoesNotExistError:
-    return await interaction.response.send_message(f"❌ L'utente Roblox con username **{username}** non esiste.", ephemeral=True)
+    try:
+        user = await client.get_user_by_username(username)
+    except UserDoesNotExistError:
+        return await interaction.response.send_message(f"❌ L'utente Roblox con username **{username}** non esiste.", ephemeral=True)
 
     group = await client.get_group(group_id)
-
     roles = await group.get_roles()
     porto_arma_role = next((r for r in roles if r.name.lower() == "porto d'arma"), None)
     if not porto_arma_role:
