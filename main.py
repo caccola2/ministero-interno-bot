@@ -5,6 +5,7 @@ from discord import app_commands, Interaction, Embed, User
 from flask import Flask
 from threading import Thread
 import aiohttp
+from ro_py import Client
 
 # ─── Flask Keep-Alive ─────────────────────────────────────
 app = Flask('')
@@ -112,48 +113,28 @@ async def accept_group(interaction: Interaction, username: str):
     if not member or not ha_permessi(member):
         return await interaction.response.send_message("⛔ Non hai il permesso.", ephemeral=True)
 
-    async with aiohttp.ClientSession(cookies={".ROBLOSECURITY": ROBLOX_COOKIE}) as session:
-        user_id = await get_user_id(session, username)
-        if not user_id:
-            return await interaction.response.send_message(f"❌ L'utente Roblox **{username}** non esiste.", ephemeral=True)
+    client = Client(cookie=ROBLOX_COOKIE)
+    await client.login()
 
-        csrf = await get_csrf_token(session)
-        headers = {
-            "x-csrf-token": csrf,
-            "Cookie": f".ROBLOSECURITY={ROBLOX_COOKIE}"
-        }
+    try:
+        user = await client.get_user_by_username(username)
+    except Exception:
+        return await interaction.response.send_message(f"❌ L'utente Roblox **{username}** non esiste.", ephemeral=True)
 
-        async def accept_and_rank():
-            # Accetta richiesta
-            accept_resp = await session.post(
-                f"https://groups.roblox.com/v1/groups/{GROUP_ID}/users/{user_id}/accept",
-                headers=headers
-            )
-            if accept_resp.status != 200:
-                text = await accept_resp.text()
-                raise Exception(f"Errore accettazione utente: {accept_resp.status} {text}")
+    user_id = user.id
 
-            # Prende ruoli
-            async with session.get(f"https://groups.roblox.com/v1/groups/{GROUP_ID}/roles", headers=headers) as r:
-                if r.status != 200:
-                    text = await r.text()
-                    raise Exception(f"Errore ottenimento ruoli: {r.status} {text}")
-                data = await r.json()
-                porto_arma_role = next((role for role in data["roles"] if role["name"].lower() == "porto d'arma"), None)
-                if not porto_arma_role:
-                    raise Exception("Ruolo 'Porto d'Arma' non trovato")
+    async def accept_and_rank():
+        await client.groups.accept_join_request(GROUP_ID, user_id)
 
-            # Imposta ruolo
-            patch_resp = await session.patch(
-                f"https://groups.roblox.com/v1/groups/{GROUP_ID}/users/{user_id}",
-                json={"roleId": porto_arma_role["id"]},
-                headers=headers
-            )
-            if patch_resp.status != 200:
-                text = await patch_resp.text()
-                raise Exception(f"Errore assegnazione ruolo: {patch_resp.status} {text}")
+        roles = await client.groups.get_roles(GROUP_ID)
+        porto_arma_role = next((role for role in roles if role.name.lower() == "porto d'arma"), None)
+        if not porto_arma_role:
+            raise Exception("Ruolo 'Porto d'Arma' non trovato")
 
-        await handle_action(interaction, accept_and_rank, "accettato e assegnato al ruolo 'Porto d'Arma'", username)
+        await client.groups.set_user_role(GROUP_ID, user_id, porto_arma_role.id)
+
+    await handle_action(interaction, accept_and_rank, "accettato e assegnato al ruolo 'Porto d'Arma'", username)
+
 
 # ─── Comando: Kick Group ────────────────────────────────────
 @tree.command(name="kick_group", description="Espelle un utente dal gruppo Roblox")
