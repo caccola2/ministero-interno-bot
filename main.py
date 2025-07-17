@@ -169,6 +169,8 @@ async def set_group_role(interaction: Interaction, username: str, rank_name: str
         await interaction.response.send_message(f"❌ Errore durante l'assegnazione del ruolo: {e}", ephemeral=True)
 
 # ─── Comando: Kick Group ─────────────────────────────────────────────
+from ro_py.utilities.errors import UserDoesNotExistError
+
 @tree.command(name="kick_group", description="Rimuove un utente dal gruppo Roblox")
 @app_commands.describe(username="Username dell'utente da rimuovere")
 async def kick_group(interaction: Interaction, username: str):
@@ -179,17 +181,18 @@ async def kick_group(interaction: Interaction, username: str):
     client = get_client()
 
     try:
-        # Usiamo search_users al posto di get_user_by_username
-        search_results = await client.search_users(username)
-        if not search_results:
-            return await interaction.response.send_message(f"❌ L'utente Roblox **{username}** non esiste.", ephemeral=True)
-        
-        user = search_results[0]
+        user = await client.get_user_by_username(username)
+    except UserDoesNotExistError:
+        return await interaction.response.send_message(f"❌ L'utente Roblox **{username}** non esiste.", ephemeral=True)
     except Exception as e:
-        print(f"[DEBUG] Errore durante la ricerca utente: {e}")
         return await interaction.response.send_message(f"❌ Errore durante la ricerca dell'utente: {e}", ephemeral=True)
 
     group = await client.get_group(group_id)
+
+    try:
+        is_in_group = await group.get_role(user)
+    except Exception:
+        return await interaction.response.send_message(f"❌ L'utente **{username}** non fa parte del gruppo.", ephemeral=True)
 
     await handle_action(
         interaction,
