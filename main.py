@@ -20,7 +20,7 @@ Thread(target=run).start()
 
 # ─── Costanti e Setup ─────────────────────────────────────
 ROBLOX_COOKIE = os.getenv("ROBLOX_COOKIE")
-GROUP_ID = 8730810
+GROUP_ID = 9927486
 PERMESSI_AUTORIZZATI = [1226305676708679740, 1244221458096455730]
 
 intents = discord.Intents.default()
