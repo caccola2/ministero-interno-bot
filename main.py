@@ -4,8 +4,8 @@ from discord.ext import commands
 from discord import app_commands, Interaction
 from flask import Flask
 from threading import Thread
-from ro_py import Client  # pip install ro_py
-from ro_py.utilities.errors import UserDoesNotExistError 
+from ro_py import Client 
+from ro_py.utilities.errors import UserDoesNotExistError
 
 # ─── Flask keep-alive server ───────────────────────────────────────────────
 app = Flask('')
