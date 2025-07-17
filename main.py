@@ -59,12 +59,19 @@ async def handle_action(interaction, azione, messaggio_successo, username):
     nome_richiedente="Nome del richiedente",
     data_emissione="Data dell'esito (formato GG/MM/AAAA)"
 )
-async def esito_porto_armi(interaction: Interaction, destinatario: discord.User, nome_funzionario: str, esito: str, nome_richiedente: str, data_emissione: str):
+async def esito_porto_armi(
+    interaction: Interaction,
+    destinatario: User,
+    nome_funzionario: str,
+    esito: str,
+    nome_richiedente: str,
+    data_emissione: str
+):
     esito = esito.upper()
     if esito not in ["ACCOGLIE", "RIGETTA"]:
         return await interaction.response.send_message("❌ L'esito deve essere 'ACCOGLIE' o 'RIGETTA'.", ephemeral=True)
 
-    embed = discord.Embed(
+    embed = Embed(
         title="ESITO RICHIESTA PORTO D'ARMA",
         description=(
             "**VISTO** il regolamento sul rilascio del porto d'armi emesso in data 02/06/2024\n"
@@ -77,6 +84,7 @@ async def esito_porto_armi(interaction: Interaction, destinatario: discord.User,
         ),
         color=0x2b2d31
     )
+
     embed.set_footer(
         text="Sistema di Comunicazioni Dirette – Ministero dell'Interno",
         icon_url=interaction.client.user.avatar.url if interaction.client.user.avatar else None
