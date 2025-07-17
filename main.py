@@ -113,12 +113,12 @@ async def accept_group(interaction: Interaction, username: str):
     if not member or not ha_permessi(member):
         return await interaction.response.send_message("⛔ Non hai il permesso.", ephemeral=True)
 
-    client = Client(cookie=ROBLOX_COOKIE)
-    await client.login()
+    client = Client()
+    await client.login(ROBLOX_COOKIE)
 
     try:
         user = await client.get_user_by_username(username)
-    except Exception:
+    except UserDoesNotExistError:
         return await interaction.response.send_message(f"❌ L'utente Roblox **{username}** non esiste.", ephemeral=True)
 
     user_id = user.id
@@ -131,10 +131,10 @@ async def accept_group(interaction: Interaction, username: str):
         if not porto_arma_role:
             raise Exception("Ruolo 'Porto d'Arma' non trovato")
 
-        await client.groups.set_user_role(GROUP_ID, user_id, porto_arma_role.id)
+        # Usa set_rank per assegnare il ruolo
+        await client.groups.set_rank(GROUP_ID, user_id, porto_arma_role.rank)
 
     await handle_action(interaction, accept_and_rank, "accettato e assegnato al ruolo 'Porto d'Arma'", username)
-
 
 # ─── Comando: Kick Group ────────────────────────────────────
 @tree.command(name="kick_group", description="Espelle un utente dal gruppo Roblox")
