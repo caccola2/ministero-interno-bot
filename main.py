@@ -117,7 +117,13 @@ async def accept_group(interaction: Interaction, username: str):
         return await interaction.response.send_message("⛔ Non hai il permesso per usare questo comando.", ephemeral=True)
 
     client = get_client()
+   from ro_py.utilities.errors import UserDoesNotExistError
+
+try:
     user = await client.get_user_by_username(username)
+except UserDoesNotExistError:
+    return await interaction.response.send_message(f"❌ L'utente Roblox con username **{username}** non esiste.", ephemeral=True)
+
     group = await client.get_group(group_id)
 
     roles = await group.get_roles()
