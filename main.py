@@ -6,6 +6,7 @@ from flask import Flask
 from threading import Thread
 import aiohttp
 from ro_py import Client
+from ro_py.utilities.errors import UserDoesNotExistError
 
 # ─── Flask Keep-Alive ─────────────────────────────────────
 app = Flask('')
@@ -113,8 +114,7 @@ async def accept_group(interaction: Interaction, username: str):
     if not member or not ha_permessi(member):
         return await interaction.response.send_message("⛔ Non hai il permesso.", ephemeral=True)
 
-    client = Client()
-    await client.login(ROBLOX_COOKIE)
+    client = Client(cookie=ROBLOX_COOKIE)
 
     try:
         user = await client.get_user_by_username(username)
@@ -131,7 +131,6 @@ async def accept_group(interaction: Interaction, username: str):
         if not porto_arma_role:
             raise Exception("Ruolo 'Porto d'Arma' non trovato")
 
-        # Usa set_rank per assegnare il ruolo
         await client.groups.set_rank(GROUP_ID, user_id, porto_arma_role.rank)
 
     await handle_action(interaction, accept_and_rank, "accettato e assegnato al ruolo 'Porto d'Arma'", username)
