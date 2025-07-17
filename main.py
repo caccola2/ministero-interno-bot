@@ -114,39 +114,49 @@ async def accept_group(interaction: Interaction, username: str):
         return await interaction.response.send_message("⛔ Non hai il permesso.", ephemeral=True)
 
     async with aiohttp.ClientSession(cookies={".ROBLOSECURITY": ROBLOX_COOKIE}) as session:
-        async with session.get(f"https://api.roblox.com/users/get-by-username?username={username}") as r:
+        async def get_csrf():
+            async with session.post("https://auth.roblox.com/v2/logout") as resp:
+                return resp.headers.get("x-csrf-token")
+
+        csrf_token = await get_csrf()
+
+        payload = {
+            "usernames": [username],
+            "excludeBannedUsers": False
+        }
+        async with session.post("https://users.roblox.com/v1/usernames/users", json=payload) as r:
+            if r.status != 200:
+                return await interaction.response.send_message("❌ Errore nella richiesta per ottenere l'utente.", ephemeral=True)
             data = await r.json()
-            if "Id" not in data or data["Id"] == 0:
+            if not data["data"]:
                 return await interaction.response.send_message(f"❌ L'utente Roblox **{username}** non esiste.", ephemeral=True)
-            user_id = data["Id"]
+            user_id = data["data"][0]["id"]
 
-        async with session.post("https://auth.roblox.com/v2/logout") as r:
-            csrf_token = r.headers.get("x-csrf-token")
-            if not csrf_token:
-                return await interaction.response.send_message("❌ Errore ottenimento CSRF token.", ephemeral=True)
+        async def accept_and_rank():
+            async with session.post(
+                f"https://groups.roblox.com/v1/groups/{GROUP_ID}/users/{user_id}/accept",
+                headers={"x-csrf-token": csrf_token}
+            ) as accept_response:
+                if accept_response.status != 200:
+                    error = await accept_response.text()
+                    raise Exception(f"Errore accettazione utente: {accept_response.status} {error}")
 
-        headers = {"x-csrf-token": csrf_token, "Content-Type": "application/json"}
+            async with session.get(f"https://groups.roblox.com/v1/groups/{GROUP_ID}/roles") as r:
+                data = await r.json()
+                porto_arma_role = next((role for role in data["roles"] if role["name"].lower() == "porto d'arma"), None)
+                if not porto_arma_role:
+                    raise Exception("Ruolo 'Porto d'Arma' non trovato")
 
-        accept_url = f"https://groups.roblox.com/v1/groups/{GROUP_ID}/users/{user_id}/accept"
-        async with session.post(accept_url, headers=headers) as r:
-            if r.status != 200:
-                err = await r.text()
-                return await interaction.response.send_message(f"❌ Errore accettazione utente: {r.status} - {err}", ephemeral=True)
+            async with session.patch(
+                f"https://groups.roblox.com/v1/groups/{GROUP_ID}/users/{user_id}",
+                json={"roleId": porto_arma_role["id"]},
+                headers={"x-csrf-token": csrf_token}
+            ) as set_role_response:
+                if set_role_response.status != 200:
+                    error = await set_role_response.text()
+                    raise Exception(f"Errore assegnazione ruolo: {set_role_response.status} {error}")
 
-        async with session.get(f"https://groups.roblox.com/v1/groups/{GROUP_ID}/roles") as r:
-            data = await r.json()
-            porto_arma_role = next((role for role in data["roles"] if role["name"].lower() == "porto d'arma"), None)
-            if not porto_arma_role:
-                return await interaction.response.send_message("❌ Ruolo 'Porto d'Arma' non trovato.", ephemeral=True)
-
-        set_role_url = f"https://groups.roblox.com/v1/groups/{GROUP_ID}/users/{user_id}"
-        payload = {"roleId": porto_arma_role["id"]}
-        async with session.patch(set_role_url, headers=headers, json=payload) as r:
-            if r.status != 200:
-                err = await r.text()
-                return await interaction.response.send_message(f"❌ Errore assegnamento ruolo: {r.status} - {err}", ephemeral=True)
-
-    await interaction.response.send_message(f"✅ Utente **{username}** accettato e assegnato al ruolo **Porto d'Arma**!", ephemeral=True)
+        await handle_action(interaction, accept_and_rank, "accettato e assegnato al ruolo 'Porto d'Arma'", username)
 
 # ─── Comando: Kick Group ────────────────────────────────────
 @tree.command(name="kick_group", description="Espelle un utente dal gruppo Roblox")
