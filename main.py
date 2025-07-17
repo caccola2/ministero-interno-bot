@@ -56,6 +56,16 @@ async def handle_action(interaction, func, success_message, username):
     except Exception as e:
         await interaction.response.send_message(f"❌ Errore: {e}", ephemeral=True)
 
+# Verifica se l'utente è già nel gruppo
+async with session.get(f"https://groups.roblox.com/v1/users/{user_id}/groups/roles") as r:
+    if r.status == 200:
+        groups = await r.json()
+        for g in groups['data']:
+            if g['group']['id'] == GROUP_ID:
+                return await interaction.response.send_message(
+                    f"⚠️ L'utente **{username}** è già nel gruppo.", ephemeral=True
+                )
+
 # ─── Comandi di invio esiti ────────────────────────────────
 @tree.command(name="esito-porto-armi", description="Invia esito porto d'armi in DM")
 @app_commands.describe(
