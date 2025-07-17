@@ -2,3 +2,4 @@ discord.py
 Flask
 ro_py
 httpx
+aiohttp
