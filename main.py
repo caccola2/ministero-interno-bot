@@ -144,15 +144,29 @@ async def set_group_role(interaction: Interaction, username: str, rank_name: str
         return await interaction.response.send_message("⛔ Non hai il permesso per usare questo comando.", ephemeral=True)
 
     client = get_client()
-    user = await client.get_user_by_username(username)
-    group = await client.get_group(group_id)
+    try:
+        user = await client.get_user_by_username(username)
+    except UserDoesNotExistError:
+        return await interaction.response.send_message(f"❌ L'utente Roblox **{username}** non esiste.", ephemeral=True)
+    except Exception as e:
+        return await interaction.response.send_message(f"❌ Errore: {e}", ephemeral=True)
 
-    roles = await group.get_roles()
-    matching_role = next((r for r in roles if r.name.lower() == rank_name.lower()), None)
-    if not matching_role:
-        return await interaction.response.send_message(f"❌ Il ruolo '{rank_name}' non è stato trovato nel gruppo.", ephemeral=True)
+    try:
+        group = await client.get_group(group_id)
+        roles = await group.get_roles()
 
-    await handle_action(interaction, lambda: group.set_rank(user, matching_role.id), f"impostato al ruolo '{matching_role.name}'", username)
+        matching_role = next((r for r in roles if r.name.lower() == rank_name.lower()), None)
+        if not matching_role:
+            return await interaction.response.send_message(f"❌ Il ruolo '{rank_name}' non è stato trovato nel gruppo.", ephemeral=True)
+
+        await group.set_rank(user, matching_role.id)
+        await interaction.response.send_message(
+            f"✅ L'utente **{username}** è stato impostato al ruolo **{matching_role.name}**.",
+            ephemeral=True
+        )
+
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Errore durante l'assegnazione del ruolo: {e}", ephemeral=True)
 
 # ─── Comando: Kick Group ─────────────────────────────────────────────
 @tree.command(name="kick_group", description="Rimuove un utente dal gruppo Roblox")
@@ -163,10 +177,19 @@ async def kick_group(interaction: Interaction, username: str):
         return await interaction.response.send_message("⛔ Non hai il permesso per usare questo comando.", ephemeral=True)
 
     client = get_client()
-    user = await client.get_user_by_username(username)
-    group = await client.get_group(group_id)
+    try:
+        user = await client.get_user_by_username(username)
+    except UserDoesNotExistError:
+        return await interaction.response.send_message(f"❌ L'utente Roblox **{username}** non esiste.", ephemeral=True)
+    except Exception as e:
+        return await interaction.response.send_message(f"❌ Errore: {e}", ephemeral=True)
 
-    await handle_action(interaction, lambda: group.exile_user(user), "rimosso dal gruppo", username)
+    try:
+        group = await client.get_group(group_id)
+        await group.exile_user(user)
+        await interaction.response.send_message(f"✅ L'utente **{username}** è stato rimosso dal gruppo.", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Errore durante la rimozione dal gruppo: {e}", ephemeral=True)
 
 # ─── Avvio bot ─────────────────────────────────────────────────────────────
 @bot.event
