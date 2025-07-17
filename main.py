@@ -106,59 +106,43 @@ async def esito_gpg(interaction: Interaction, destinatario: User, nome_funzionar
     await esito_porto_armi(interaction, destinatario, nome_funzionario, esito, nome_richiedente, data_emissione)
 
 # ─── Comando: Accept Group ─────────────────────────────────
-@bot.tree.command(name="accept_group", description="Accetta un utente nel gruppo Roblox")
-@app_commands.checks.has_role(1226305676708679740)
-async def accept_group(interaction: discord.Interaction, username: str):
+@bot.tree.command(name="accept_group", description="Accetta un utente nel gruppo Roblox e assegna il ruolo 'Porto d'Arma'")
+@app_commands.describe(username="Username dell'utente Roblox")
+@has_required_role()
+async def accept_group(interaction: Interaction, username: str):
     await interaction.response.defer(ephemeral=True)
 
-    ROBLOX_COOKIE = os.getenv("ROBLOX_COOKIE")
-    GROUP_ID = 8730810
-    HEADERS = {"Content-Type": "application/json"}
-
     async with aiohttp.ClientSession(cookies={".ROBLOSECURITY": ROBLOX_COOKIE}) as session:
-        # Ottieni X-CSRF-TOKEN
-        async with session.post("https://auth.roblox.com/v2/logout") as csrf_req:
-            csrf_token = csrf_req.headers.get("x-csrf-token")
+        async with session.get(f"https://users.roblox.com/v1/usernames/users", json={"usernames": [username]}) as resp:
+            if resp.status != 200:
+                return await interaction.followup.send(f"❌ Errore nel recuperare l'utente Roblox **{username}**.")
+            data = await resp.json()
+            if not data.get("data"):
+                return await interaction.followup.send(f"❌ Utente Roblox **{username}** non trovato.")
+            user_id = data["data"][0]["id"]
 
-        if not csrf_token:
-            return await interaction.followup.send("❌ Errore: impossibile ottenere il token CSRF.", ephemeral=True)
+        async with session.post(f"https://groups.roblox.com/v1/groups/{GROUP_ID}/join-requests/users/{user_id}/accept") as resp:
+            if resp.status != 200:
+                error_text = await resp.text()
+                return await interaction.followup.send(f"❌ Errore: impossibile accettare richiesta: {resp.status} {error_text}")
 
-        # Ottieni userId da username
-        async with session.get(f"https://api.roblox.com/users/get-by-username?username={username}") as user_res:
-            if user_res.status != 200:
-                return await interaction.followup.send("❌ Errore: username non trovato.", ephemeral=True)
-            user_data = await user_res.json()
-            user_id = user_data.get("Id")
+        async with session.get(f"https://groups.roblox.com/v1/groups/{GROUP_ID}/roles") as resp:
+            if resp.status != 200:
+                return await interaction.followup.send("❌ Errore nel recuperare i ruoli del gruppo.")
+            roles_data = await resp.json()
+            porto_arma_role = next((r for r in roles_data["roles"] if r["name"].lower() == "porto d'arma"), None)
+            if not porto_arma_role:
+                return await interaction.followup.send("❌ Ruolo 'Porto d'Arma' non trovato nel gruppo.")
 
-        if not user_id:
-            return await interaction.followup.send("❌ Errore: impossibile ottenere l'ID utente.", ephemeral=True)
+        async with session.patch(
+            f"https://groups.roblox.com/v1/groups/{GROUP_ID}/users/{user_id}",
+            json={"roleId": porto_arma_role["id"]}
+        ) as resp:
+            if resp.status != 200:
+                error_text = await resp.text()
+                return await interaction.followup.send(f"❌ Errore nell'assegnare il ruolo: {resp.status} {error_text}")
 
-        # Verifica se è già nel gruppo
-        async with session.get(f"https://groups.roblox.com/v1/users/{user_id}/groups/roles") as check_res:
-            if check_res.status == 200:
-                data = await check_res.json()
-                for group in data.get("data", []):
-                    if group["group"]["id"] == GROUP_ID:
-                        return await interaction.followup.send(
-                            f"⚠️ L'utente **{username}** è già nel gruppo.", ephemeral=True
-                        )
-
-        # Prova ad accettare l'utente
-        async with session.post(
-            f"https://groups.roblox.com/v1/groups/{GROUP_ID}/users/{user_id}/accept",
-            headers={"x-csrf-token": csrf_token}
-        ) as accept_res:
-            if accept_res.status == 404:
-                return await interaction.followup.send(
-                    f"❌ L'utente **{username}** non ha richiesto di unirsi al gruppo.", ephemeral=True
-                )
-            elif accept_res.status != 200:
-                text = await accept_res.text()
-                return await interaction.followup.send(
-                    f"❌ Errore accettazione utente: {accept_res.status} {text}", ephemeral=True
-                )
-
-        await interaction.followup.send(f"✅ Utente **{username}** accettato nel gruppo!", ephemeral=True)
+    await interaction.followup.send(f"✅ Utente **{username}** accettato nel gruppo e assegnato al ruolo 'Porto d'Arma'.", ephemeral=True)
 
 # ─── Comando: Kick Group ────────────────────────────────────
 @tree.command(name="kick_group", description="Espelle un utente dal gruppo Roblox")
