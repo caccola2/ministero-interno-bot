@@ -114,7 +114,9 @@ async def accept_group(interaction: Interaction, username: str):
     if not member or not ha_permessi(member):
         return await interaction.response.send_message("⛔ Non hai il permesso.", ephemeral=True)
 
-    client = Client(cookie=ROBLOX_COOKIE)
+    # CORRETTO PER LA VERSIONE ATTUALE
+    client = Client()
+    await client.login(ROBLOX_COOKIE)
 
     try:
         user = await client.get_user_by_username(username)
