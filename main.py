@@ -4,10 +4,9 @@ from discord.ext import commands
 from discord import app_commands, Interaction, Embed, User
 from flask import Flask
 from threading import Thread
-from ro_py import Client 
-from ro_py.utilities.errors import UserDoesNotExistError
+import aiohttp
 
-# ─── Flask keep-alive server ───────────────────────────────────────────────
+# ─── Flask Keep-Alive ─────────────────────────────────────
 app = Flask('')
 
 @app.route('/')
@@ -19,12 +18,11 @@ def run():
 
 Thread(target=run).start()
 
-# ─── Costanti ───────────────────────────────────────────────────────────────
+# ─── Costanti e Setup ─────────────────────────────────────
 ROBLOX_COOKIE = os.getenv("ROBLOX_COOKIE")
-group_id = 8730810
+GROUP_ID = 8730810
 PERMESSI_AUTORIZZATI = [1226305676708679740, 1244221458096455730]
 
-# ─── Discord bot setup ──────────────────────────────────────────────────────
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
@@ -33,41 +31,40 @@ intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 tree = bot.tree
 
-# ─── Utility ────────────────────────────────────────────────────────────────
+# ─── Utility ───────────────────────────────────────────────
 def ha_permessi(member):
     return any(role.id in PERMESSI_AUTORIZZATI for role in member.roles)
 
-def get_client():
-    return Client(ROBLOX_COOKIE)
+async def get_user_id(session, username):
+    url = f"https://users.roblox.com/v1/usernames/users"
+    async with session.post(url, json={"usernames": [username], "excludeBannedUsers": False}) as resp:
+        data = await resp.json()
+        if data.get("data") and len(data["data"]) > 0:
+            return data["data"][0]["id"]
+        else:
+            return None
 
-async def handle_action(interaction, azione, messaggio_successo, username):
+async def get_csrf_token(session):
+    async with session.post("https://auth.roblox.com/v2/logout") as resp:
+        return resp.headers.get("x-csrf-token")
+
+async def handle_action(interaction, func, success_message, username):
     try:
-        await azione()
-        await interaction.response.send_message(
-            f"✅ Utente **{username}** {messaggio_successo}.", ephemeral=True
-        )
+        await func()
+        await interaction.response.send_message(f"✅ Utente **{username}** {success_message}.", ephemeral=True)
     except Exception as e:
-        await interaction.response.send_message(
-            f"❌ Errore durante l'esecuzione dell'azione: {e}", ephemeral=True
-        )
+        await interaction.response.send_message(f"❌ Errore: {e}", ephemeral=True)
 
-# ─── Comando: Esito Porto d'Armi ────────────────────────────────────────────
+# ─── Comandi di invio esiti ────────────────────────────────
 @tree.command(name="esito-porto-armi", description="Invia esito porto d'armi in DM")
 @app_commands.describe(
     destinatario="Utente a cui inviare l'esito",
     nome_funzionario="Nome del funzionario",
-    esito="Esito della richiesta (ACCOGLIE o RIGETTA)",
+    esito="Esito (ACCOGLIE o RIGETTA)",
     nome_richiedente="Nome del richiedente",
-    data_emissione="Data dell'esito (formato GG/MM/AAAA)"
+    data_emissione="Data (formato GG/MM/AAAA)"
 )
-async def esito_porto_armi(
-    interaction: Interaction,
-    destinatario: User,
-    nome_funzionario: str,
-    esito: str,
-    nome_richiedente: str,
-    data_emissione: str
-):
+async def esito_porto_armi(interaction: Interaction, destinatario: User, nome_funzionario: str, esito: str, nome_richiedente: str, data_emissione: str):
     esito = esito.upper()
     if esito not in ["ACCOGLIE", "RIGETTA"]:
         return await interaction.response.send_message("❌ L'esito deve essere 'ACCOGLIE' o 'RIGETTA'.", ephemeral=True)
@@ -85,7 +82,6 @@ async def esito_porto_armi(
         ),
         color=0x2b2d31
     )
-
     embed.set_footer(
         text="Sistema di Comunicazioni Dirette – Ministero dell'Interno",
         icon_url=interaction.client.user.avatar.url if interaction.client.user.avatar else None
@@ -93,120 +89,115 @@ async def esito_porto_armi(
 
     try:
         await destinatario.send(embed=embed)
-        await interaction.response.send_message(f"✅ Esito inviato a {destinatario.mention} in DM.", ephemeral=True)
+        await interaction.response.send_message(f"✅ Esito inviato a {destinatario.mention}.", ephemeral=True)
     except discord.Forbidden:
         await interaction.response.send_message("❌ Il destinatario ha i DM chiusi.", ephemeral=True)
 
-# ─── Comando: Esito GPG ─────────────────────────────────────────────────────
 @tree.command(name="esito-gpg", description="Invia esito GPG in DM")
 @app_commands.describe(
-    destinatario="Utente a cui inviare l'esito",
+    destinatario="Utente",
     nome_funzionario="Nome del funzionario",
-    esito="Esito della richiesta (ACCOGLIE o RIGETTA)",
+    esito="ACCOGLIE o RIGETTA",
     nome_richiedente="Nome del richiedente",
-    data_emissione="Data dell'esito (formato GG/MM/AAAA)"
+    data_emissione="Data (GG/MM/AAAA)"
 )
-async def esito_gpg(interaction: Interaction, destinatario: discord.User, nome_funzionario: str, esito: str, nome_richiedente: str, data_emissione: str):
+async def esito_gpg(interaction: Interaction, destinatario: User, nome_funzionario: str, esito: str, nome_richiedente: str, data_emissione: str):
     await esito_porto_armi(interaction, destinatario, nome_funzionario, esito, nome_richiedente, data_emissione)
 
-# ─── Comando: Accept Group ────────────────────────────────────────────────
-@tree.command(name="accept_group", description="Accetta un utente nel gruppo Roblox e assegna 'Porto d'Arma'")
-@app_commands.describe(username="Username dell'utente da accettare")
+# ─── Comando: Accept Group ─────────────────────────────────
+@tree.command(name="accept_group", description="Accetta un utente nel gruppo Roblox e assegna il ruolo 'Porto d'Arma'")
+@app_commands.describe(username="Username dell'utente")
 async def accept_group(interaction: Interaction, username: str):
     member = interaction.guild.get_member(interaction.user.id)
     if not member or not ha_permessi(member):
-        return await interaction.response.send_message("⛔ Non hai il permesso per usare questo comando.", ephemeral=True)
+        return await interaction.response.send_message("⛔ Non hai il permesso.", ephemeral=True)
 
-    client = get_client()
-    try:
-        user = await client.get_user_by_username(username)
-    except UserDoesNotExistError:
-        return await interaction.response.send_message(f"❌ L'utente Roblox con username **{username}** non esiste.", ephemeral=True)
+    async with aiohttp.ClientSession(cookies={".ROBLOSECURITY": ROBLOX_COOKIE}) as session:
+        user_id = await get_user_id(session, username)
+        if not user_id:
+            return await interaction.response.send_message(f"❌ L'utente Roblox **{username}** non esiste.", ephemeral=True)
 
-    group = await client.get_group(group_id)
-    roles = await group.get_roles()
-    porto_arma_role = next((r for r in roles if r.name.lower() == "porto d'arma"), None)
-    if not porto_arma_role:
-        return await interaction.response.send_message("❌ Il ruolo 'Porto d'Arma' non è stato trovato.", ephemeral=True)
+        csrf = await get_csrf_token(session)
 
-    async def accept_and_assign():
-        await group.accept_user(user)
-        await group.set_rank(user, porto_arma_role.id)
+        async def accept_and_rank():
+            # Accetta richiesta
+            await session.post(f"https://groups.roblox.com/v1/groups/{GROUP_ID}/users/{user_id}/accept", headers={"x-csrf-token": csrf})
 
-    await handle_action(interaction, accept_and_assign, "accettato e assegnato al ruolo 'Porto d'Arma'", username)
+            # Prende ruoli
+            async with session.get(f"https://groups.roblox.com/v1/groups/{GROUP_ID}/roles") as r:
+                data = await r.json()
+                porto_arma_role = next((role for role in data["roles"] if role["name"].lower() == "porto d'arma"), None)
+                if not porto_arma_role:
+                    raise Exception("Ruolo 'Porto d'Arma' non trovato")
 
-# ─── Comando: Set Group Role ──────────────────────────────────────────────
-@tree.command(name="set_group_role", description="Imposta un ruolo specifico a un utente nel gruppo Roblox")
-@app_commands.describe(username="Username dell'utente", rank_name="Nome del ruolo nel gruppo Roblox")
-async def set_group_role(interaction: Interaction, username: str, rank_name: str):
-    member = interaction.guild.get_member(interaction.user.id)
-    if not member or not ha_permessi(member):
-        return await interaction.response.send_message("⛔ Non hai il permesso per usare questo comando.", ephemeral=True)
+            # Imposta ruolo
+            await session.patch(
+                f"https://groups.roblox.com/v1/groups/{GROUP_ID}/users/{user_id}",
+                json={"roleId": porto_arma_role["id"]},
+                headers={"x-csrf-token": csrf}
+            )
 
-    client = get_client()
-    try:
-        user = await client.get_user_by_username(username)
-    except UserDoesNotExistError:
-        return await interaction.response.send_message(f"❌ L'utente Roblox **{username}** non esiste.", ephemeral=True)
-    except Exception as e:
-        return await interaction.response.send_message(f"❌ Errore: {e}", ephemeral=True)
+        await handle_action(interaction, accept_and_rank, "accettato e assegnato al ruolo 'Porto d'Arma'", username)
 
-    try:
-        group = await client.get_group(group_id)
-        roles = await group.get_roles()
-
-        matching_role = next((r for r in roles if r.name.lower() == rank_name.lower()), None)
-        if not matching_role:
-            return await interaction.response.send_message(f"❌ Il ruolo '{rank_name}' non è stato trovato nel gruppo.", ephemeral=True)
-
-        await group.set_rank(user, matching_role.id)
-        await interaction.response.send_message(
-            f"✅ L'utente **{username}** è stato impostato al ruolo **{matching_role.name}**.",
-            ephemeral=True
-        )
-
-    except Exception as e:
-        await interaction.response.send_message(f"❌ Errore durante l'assegnazione del ruolo: {e}", ephemeral=True)
-
-# ─── Comando: Kick Group ─────────────────────────────────────────────
-from ro_py.utilities.errors import UserDoesNotExistError
-
-@tree.command(name="kick_group", description="Rimuove un utente dal gruppo Roblox")
-@app_commands.describe(username="Username dell'utente da rimuovere")
+# ─── Comando: Kick Group ────────────────────────────────────
+@tree.command(name="kick_group", description="Espelle un utente dal gruppo Roblox")
+@app_commands.describe(username="Username dell'utente")
 async def kick_group(interaction: Interaction, username: str):
     member = interaction.guild.get_member(interaction.user.id)
     if not member or not ha_permessi(member):
-        return await interaction.response.send_message("⛔ Non hai il permesso per usare questo comando.", ephemeral=True)
+        return await interaction.response.send_message("⛔ Non hai il permesso.", ephemeral=True)
 
-    client = get_client()
+    async with aiohttp.ClientSession(cookies={".ROBLOSECURITY": ROBLOX_COOKIE}) as session:
+        user_id = await get_user_id(session, username)
+        if not user_id:
+            return await interaction.response.send_message(f"❌ L'utente Roblox **{username}** non esiste.", ephemeral=True)
 
-    try:
-        user = await client.get_user_by_username(username)
-    except UserDoesNotExistError:
-        return await interaction.response.send_message(f"❌ L'utente Roblox **{username}** non esiste.", ephemeral=True)
-    except Exception as e:
-        return await interaction.response.send_message(f"❌ Errore durante la ricerca dell'utente: {e}", ephemeral=True)
+        csrf = await get_csrf_token(session)
 
-    group = await client.get_group(group_id)
+        async def exile():
+            await session.delete(
+                f"https://groups.roblox.com/v1/groups/{GROUP_ID}/users/{user_id}",
+                headers={"x-csrf-token": csrf}
+            )
 
-    try:
-        is_in_group = await group.get_role(user)
-    except Exception:
-        return await interaction.response.send_message(f"❌ L'utente **{username}** non fa parte del gruppo.", ephemeral=True)
+        await handle_action(interaction, exile, "espulso dal gruppo", username)
 
-    await handle_action(
-        interaction,
-        lambda: group.exile_user(user),
-        "rimosso dal gruppo",
-        username
-    )
+# ─── Comando: Set Group Role ───────────────────────────────
+@tree.command(name="set_group_role", description="Imposta un ruolo a un utente nel gruppo Roblox")
+@app_commands.describe(username="Username Roblox", rank_name="Nome del ruolo")
+async def set_group_role(interaction: Interaction, username: str, rank_name: str):
+    member = interaction.guild.get_member(interaction.user.id)
+    if not member or not ha_permessi(member):
+        return await interaction.response.send_message("⛔ Non hai il permesso.", ephemeral=True)
 
-# ─── Avvio bot ─────────────────────────────────────────────────────────────
+    async with aiohttp.ClientSession(cookies={".ROBLOSECURITY": ROBLOX_COOKIE}) as session:
+        user_id = await get_user_id(session, username)
+        if not user_id:
+            return await interaction.response.send_message(f"❌ Utente Roblox **{username}** non trovato.", ephemeral=True)
+
+        csrf = await get_csrf_token(session)
+
+        async with session.get(f"https://groups.roblox.com/v1/groups/{GROUP_ID}/roles") as r:
+            data = await r.json()
+            role = next((r for r in data["roles"] if r["name"].lower() == rank_name.lower()), None)
+            if not role:
+                return await interaction.response.send_message(f"❌ Ruolo '{rank_name}' non trovato nel gruppo.", ephemeral=True)
+
+        async def set_rank():
+            await session.patch(
+                f"https://groups.roblox.com/v1/groups/{GROUP_ID}/users/{user_id}",
+                json={"roleId": role["id"]},
+                headers={"x-csrf-token": csrf}
+            )
+
+        await handle_action(interaction, set_rank, f"impostato al ruolo '{role['name']}'", username)
+
+# ─── Avvio Bot ──────────────────────────────────────────────
 @bot.event
 async def on_ready():
     try:
         synced = await tree.sync()
-        print(f"[DEBUG] Comandi sincronizzati ({len(synced)}): {[cmd.name for cmd in synced]}")
+        print(f"[DEBUG] Comandi sincronizzati: {[cmd.name for cmd in synced]}")
     except Exception as e:
         print(f"[ERRORE] Sync fallita: {e}")
 
@@ -216,4 +207,4 @@ if __name__ == "__main__":
         print("[DEBUG] Avvio bot...")
         bot.run(token)
     else:
-        print("[DEBUG] Variabile MINISTERO_TOKEN non trovata.")
+        print("[ERRORE] Variabile MINISTERO_TOKEN non trovata.")
