@@ -116,36 +116,42 @@ async def accept_group(interaction: Interaction, username: str):
 
     await interaction.response.defer(ephemeral=True)
 
+    async def check_user_exists(username: str):
+        async with aiohttp.ClientSession() as session:
+            url = "https://users.roblox.com/v1/usernames/users"
+            async with session.post(url, json={"usernames": [username], "excludeBannedUsers": False}) as resp:
+                data = await resp.json()
+                if data.get("data") and len(data["data"]) > 0:
+                    return data["data"][0]["id"]
+                else:
+                    return None
+
+    user_id = await check_user_exists(username)
+    if user_id is None:
+        return await interaction.followup.send(f"❌ L'utente **{username}** non esiste su Roblox.", ephemeral=True)
+
     try:
         client = Client(ROBLOX_COOKIE)
-        user = await client.get_user_by_username(username)
+        user = await client.get_user(user_id)
 
         group = await client.get_group(GROUP_ID)
         join_requests = await group.get_join_requests()
 
-        # Verifica che l'utente abbia fatto richiesta
         join_user = next((req for req in join_requests if req.user.id == user.id), None)
         if not join_user:
             return await interaction.followup.send(f"❌ L'utente **{username}** non ha fatto richiesta di join.", ephemeral=True)
 
-        # Accetta la richiesta
         await group.accept_join_request(user)
 
-        # Trova il ruolo "Porto d'Arma"
         roles = await group.get_roles()
         porto_arma_role = next((r for r in roles if r.name.lower() == "porto d'arma"), None)
         if not porto_arma_role:
             return await interaction.followup.send("❌ Ruolo 'Porto d'Arma' non trovato nel gruppo.", ephemeral=True)
 
-        # Assegna il ruolo
         await group.set_rank(user, porto_arma_role)
 
         await interaction.followup.send(f"✅ Utente **{username}** accettato e assegnato al ruolo 'Porto d'Arma'.", ephemeral=True)
 
-    except UserDoesNotExistError:
-        await interaction.followup.send(f"❌ L'utente **{username}** non esiste su Roblox.", ephemeral=True)
-    except PermissionError:
-        await interaction.followup.send("❌ Il cookie Roblox non ha i permessi per questa azione.", ephemeral=True)
     except Exception as e:
         await interaction.followup.send(f"❌ Errore imprevisto: {e}", ephemeral=True)
 
