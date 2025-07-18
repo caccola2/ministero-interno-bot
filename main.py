@@ -1,11 +1,11 @@
 import os
 import discord
+import aiohttp
 from discord.ext import commands
 from discord import app_commands, Interaction, Embed, User
 from flask import Flask
 from threading import Thread
-import aiohttp
-import json
+from playwright.async_api import async_playwright
 
 # ─── Flask Keep-Alive ─────────────────────────────────────
 app = Flask('')
@@ -106,6 +106,46 @@ async def esito_gpg(interaction: Interaction, destinatario: User, nome_funzionar
     await esito_porto_armi(interaction, destinatario, nome_funzionario, esito, nome_richiedente, data_emissione)
 
 # ─── Comando: Accept Group ─────────────────────────────────
+
+# Funzione per accettare join request via browser
+async def accept_join_request_via_browser(username: str, roblox_cookie: str, group_id: int) -> bool:
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        context = await browser.new_context()
+        await context.add_cookies([{
+            'name': '.ROBLOSECURITY',
+            'value': roblox_cookie,
+            'domain': '.roblox.com',
+            'path': '/',
+            'httpOnly': True,
+            'secure': True,
+            'sameSite': 'Lax'
+        }])
+
+        page = await context.new_page()
+        await page.goto(f"https://www.roblox.com/groups/{group_id}/admin")
+
+        try:
+            # Naviga alla tab "Join Requests"
+            await page.click('text=Join Requests')
+            await page.wait_for_selector('div.GroupJoinRequest', timeout=5000)
+
+            requests = await page.query_selector_all('div.GroupJoinRequest')
+            for request in requests:
+                content = await request.inner_text()
+                if username.lower() in content.lower():
+                    accept_button = await request.query_selector('button:has-text("Accept")')
+                    if accept_button:
+                        await accept_button.click()
+                        await browser.close()
+                        return True
+        except Exception as e:
+            print(f"[Playwright] Errore durante l'automazione: {e}")
+        
+        await browser.close()
+        return False
+
+# Nuovo comando Accept Group con Playwright
 @tree.command(name="accept_group", description="Accetta un utente nel gruppo Roblox e assegna il ruolo 'Porto d'Arma'")
 @app_commands.describe(username="Username dell'utente Roblox")
 async def accept_group(interaction: Interaction, username: str):
@@ -115,43 +155,14 @@ async def accept_group(interaction: Interaction, username: str):
 
     await interaction.response.defer(ephemeral=True)
 
-    async with aiohttp.ClientSession(cookies={".ROBLOSECURITY": ROBLOX_COOKIE}) as session:
-        # Ottieni l'userId con POST (non GET)
-        user_id = await get_user_id(session, username)
-        if not user_id:
-            return await interaction.followup.send(f"❌ Utente Roblox **{username}** non trovato.")
-
-        # Accetta la richiesta di join nel gruppo
-        async with session.post(
-            f"https://groups.roblox.com/v1/groups/{GROUP_ID}/join-requests/users/{user_id}/accept"
-        ) as resp:
-            if resp.status != 200:
-                error_text = await resp.text()
-                return await interaction.followup.send(f"❌ Errore nell'accettare la richiesta: {resp.status} {error_text}")
-
-        # Recupera ruoli del gruppo
-        async with session.get(f"https://groups.roblox.com/v1/groups/{GROUP_ID}/roles") as resp:
-            if resp.status != 200:
-                return await interaction.followup.send("❌ Errore nel recuperare i ruoli del gruppo.")
-            roles_data = await resp.json()
-            porto_arma_role = next((r for r in roles_data["roles"] if r["name"].lower() == "porto d'arma"), None)
-            if not porto_arma_role:
-                return await interaction.followup.send("❌ Ruolo 'Porto d'Arma' non trovato nel gruppo.")
-
-        # Ottieni token CSRF per PATCH
-        csrf = await get_csrf_token(session)
-
-        # Assegna ruolo
-        async with session.patch(
-            f"https://groups.roblox.com/v1/groups/{GROUP_ID}/users/{user_id}",
-            json={"roleId": porto_arma_role["id"]},
-            headers={"x-csrf-token": csrf}
-        ) as resp:
-            if resp.status != 200:
-                error_text = await resp.text()
-                return await interaction.followup.send(f"❌ Errore nell'assegnare il ruolo: {resp.status} {error_text}")
-
-    await interaction.followup.send(f"✅ Utente **{username}** accettato nel gruppo e assegnato al ruolo 'Porto d'Arma'.", ephemeral=True)
+    # Accetta tramite browser
+    await interaction.followup.send(f"⏳ Tentativo di accettare **{username}** nel gruppo tramite automazione...", ephemeral=True)
+    success = await accept_join_request_via_browser(username, ROBLOX_COOKIE, GROUP_ID)
+    
+    if success:
+        await interaction.followup.send(f"✅ Utente **{username}** accettato nel gruppo (tramite automazione Playwright).", ephemeral=True)
+    else:
+        await interaction.followup.send(f"❌ Nessuna richiesta trovata per **{username}** oppure errore durante il processo.", ephemeral=True)
 
 # ─── Comando: Kick Group ────────────────────────────────────
 @tree.command(name="kick_group", description="Espelle un utente dal gruppo Roblox")
