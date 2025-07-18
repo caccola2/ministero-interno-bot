@@ -113,7 +113,6 @@ async def roblox_user_exists(username: str) -> int | None:
         "usernames": [username],
         "excludeBannedUsers": False
     }
-
     headers = {
         "Content-Type": "application/json"
     }
@@ -132,7 +131,7 @@ async def roblox_user_exists(username: str) -> int | None:
 async def accept_group(interaction: Interaction, username: str):
     member = interaction.guild.get_member(interaction.user.id)
     if not member or not ha_permessi(member):
-        return await interaction.response.send_message("⛔ Non hai il permesso.", ephemeral=True)
+        return await interaction.response.send_message("⛔ Non hai il permesso per usare questo comando.", ephemeral=True)
 
     await interaction.response.defer(ephemeral=True)
 
@@ -144,12 +143,16 @@ async def accept_group(interaction: Interaction, username: str):
         client = Client(ROBLOX_COOKIE)
         group = await client.get_group(GROUP_ID)
 
-        join_requests_pages = await group.get_join_requests()
-        join_requests = await join_requests_pages.get_all()
+        join_requests = await group.get_join_requests()
 
-        join_user = next((req for req in join_requests if req.user_id == user_id), None)
+        join_user = None
+        async for req in join_requests:
+            if req.user_id == user_id:
+                join_user = req
+                break
+
         if not join_user:
-            return await interaction.followup.send(f"❌ L'utente **{username}** non ha fatto richiesta di join.", ephemeral=True)
+            return await interaction.followup.send(f"❌ L'utente **{username}** non ha inviato richiesta di accesso al gruppo.", ephemeral=True)
 
         await group.accept_join_request(user_id)
 
