@@ -107,6 +107,19 @@ async def esito_gpg(interaction: Interaction, destinatario: User, nome_funzionar
     await esito_porto_armi(interaction, destinatario, nome_funzionario, esito, nome_richiedente, data_emissione)
 
 # ─── Comando: Accept Group ─────────────────────────────────
+import aiohttp
+
+async def roblox_user_exists(username: str) -> int | None:
+    url = "https://users.roblox.com/v1/usernames/users"
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, json={"usernames": [username], "excludeBannedUsers": False}) as resp:
+            if resp.status != 200:
+                return None
+            data = await resp.json()
+            if "data" in data and len(data["data"]) > 0:
+                return data["data"][0]["id"]
+            return None
+
 @tree.command(name="accept_group", description="Accetta un utente nel gruppo Roblox e assegna il ruolo 'Porto d'Arma'")
 @app_commands.describe(username="Username dell'utente Roblox")
 async def accept_group(interaction: Interaction, username: str):
@@ -117,34 +130,34 @@ async def accept_group(interaction: Interaction, username: str):
     await interaction.response.defer(ephemeral=True)
 
     try:
+        # Controlla se l'utente esiste tramite API diretta e ottieni user_id
+        user_id = await roblox_user_exists(username)
+        if not user_id:
+            return await interaction.followup.send(f"❌ L'utente **{username}** non esiste su Roblox.", ephemeral=True)
+
         client = Client(ROBLOX_COOKIE)
-        user = await client.get_user_by_username(username)
+        user = await client.get_user(user_id)
 
         group = await client.get_group(GROUP_ID)
+
         join_requests_pages = await group.get_join_requests()
         join_requests = [req async for req in join_requests_pages]
 
-        # Verifica che l'utente abbia fatto richiesta
         join_user = next((req for req in join_requests if req.user.id == user.id), None)
         if not join_user:
             return await interaction.followup.send(f"❌ L'utente **{username}** non ha fatto richiesta di join.", ephemeral=True)
 
-        # Accetta la richiesta
         await group.accept_join_request(user)
 
-        # Trova il ruolo "Porto d'Arma"
         roles = await group.get_roles()
         porto_arma_role = next((r for r in roles if r.name.lower() == "porto d'arma"), None)
         if not porto_arma_role:
             return await interaction.followup.send("❌ Ruolo 'Porto d'Arma' non trovato nel gruppo.", ephemeral=True)
 
-        # Assegna il ruolo
         await group.set_rank(user, porto_arma_role)
 
         await interaction.followup.send(f"✅ Utente **{username}** accettato e assegnato al ruolo 'Porto d'Arma'.", ephemeral=True)
 
-    except UserDoesNotExistError:
-        await interaction.followup.send(f"❌ L'utente **{username}** non esiste su Roblox.", ephemeral=True)
     except UnauthorizedError:
         await interaction.followup.send("❌ Il cookie Roblox non ha i permessi per questa azione.", ephemeral=True)
     except Exception as e:
