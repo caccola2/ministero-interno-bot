@@ -143,9 +143,11 @@ async def accept_group(interaction: Interaction, username: str):
 
         client = Client(ROBLOX_COOKIE)
         group = await client.get_group(GROUP_ID)
-        join_requests = await group.get_join_requests()
 
-        join_user = next((req for req in join_requests if req.userId == user_id), None)
+        join_requests_pages = await group.get_join_requests()
+        join_requests = await join_requests_pages.get_all()
+
+        join_user = next((req for req in join_requests if req.user_id == user_id), None)
         if not join_user:
             return await interaction.followup.send(f"❌ L'utente **{username}** non ha fatto richiesta di join.", ephemeral=True)
 
