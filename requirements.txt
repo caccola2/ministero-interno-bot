@@ -1,6 +1,6 @@
-discord.py
-Flask
-ro_py
-httpx
-aiohttp
-playwright
+discord.py==2.3.2
+Flask==2.3.3
+ro_py==4.4.5
+httpx==0.27.0
+aiohttp==3.9.5
+playwright==1.43.0
