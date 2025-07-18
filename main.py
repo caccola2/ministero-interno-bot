@@ -108,14 +108,23 @@ async def esito_gpg(interaction: Interaction, destinatario: User, nome_funzionar
 
 # ─── Comando: Accept Group ─────────────────────────────────
 async def roblox_user_exists(username: str) -> int | None:
-    url = f"https://api.roblox.com/users/get-by-username?username={username}"
+    url = "https://users.roblox.com/v1/usernames/users"
+    payload = {
+        "usernames": [username],
+        "excludeBannedUsers": False
+    }
+
+    headers = {
+        "Content-Type": "application/json"
+    }
+
     async with aiohttp.ClientSession() as session:
-        async with session.get(url) as resp:
+        async with session.post(url, json=payload, headers=headers) as resp:
             if resp.status != 200:
                 return None
             data = await resp.json()
-            if 'Id' in data and data['Id'] != 0:
-                return data['Id']
+            if data["data"]:
+                return data["data"][0]["id"]
             return None
 
 @tree.command(name="accept_group", description="Accetta un utente nel gruppo Roblox e assegna il ruolo 'Porto d'Arma'")
@@ -136,7 +145,6 @@ async def accept_group(interaction: Interaction, username: str):
         group = await client.get_group(GROUP_ID)
         join_requests = await group.get_join_requests()
 
-        # Corretto: JoinRequest ha attributo 'userId', non 'user.id'
         join_user = next((req for req in join_requests if req.userId == user_id), None)
         if not join_user:
             return await interaction.followup.send(f"❌ L'utente **{username}** non ha fatto richiesta di join.", ephemeral=True)
