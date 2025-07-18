@@ -123,29 +123,27 @@ async def accept_join_request_via_browser(username: str, roblox_cookie: str, gro
         }])
 
         page = await context.new_page()
-        await page.goto(f"https://www.roblox.com/groups/{group_id}/admin")
+        await page.goto(f"https://www.roblox.com/groups/{group_id}/join-requests")
 
         try:
-            # Naviga alla tab "Join Requests"
-            await page.click('text=Join Requests')
-            await page.wait_for_selector('div.GroupJoinRequest', timeout=5000)
-
+            await page.wait_for_selector('div.GroupJoinRequest', timeout=10000)
             requests = await page.query_selector_all('div.GroupJoinRequest')
+
             for request in requests:
                 content = await request.inner_text()
                 if username.lower() in content.lower():
                     accept_button = await request.query_selector('button:has-text("Accept")')
                     if accept_button:
                         await accept_button.click()
+                        await page.wait_for_timeout(1000)
                         await browser.close()
                         return True
         except Exception as e:
-            print(f"[Playwright] Errore durante l'automazione: {e}")
-        
+            print(f"[Playwright] Errore: {e}")
+
         await browser.close()
         return False
 
-# Nuovo comando Accept Group con Playwright
 @tree.command(name="accept_group", description="Accetta un utente nel gruppo Roblox e assegna il ruolo 'Porto d'Arma'")
 @app_commands.describe(username="Username dell'utente Roblox")
 async def accept_group(interaction: Interaction, username: str):
@@ -155,8 +153,7 @@ async def accept_group(interaction: Interaction, username: str):
 
     await interaction.response.defer(ephemeral=True)
 
-    # Accetta tramite browser
-    await interaction.followup.send(f"⏳ Tentativo di accettare **{username}** nel gruppo tramite automazione...", ephemeral=True)
+    await interaction.followup.send(f"⏳ Tentativo di accettare **{username}** nel gruppo...", ephemeral=True)
     success = await accept_join_request_via_browser(username, ROBLOX_COOKIE, GROUP_ID)
     
     if success:
