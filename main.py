@@ -6,7 +6,7 @@ from discord import app_commands, Interaction, Embed, User
 from flask import Flask
 from threading import Thread
 from ro_py import Client
-from ro_py.utilities.errors import UserDoesNotExistError, UnauthorizedError
+from ro_py.utilities.errors import UserDoesNotExistError
 
 # ─── Flask Keep-Alive ─────────────────────────────────────
 app = Flask('')
@@ -144,7 +144,7 @@ async def accept_group(interaction: Interaction, username: str):
 
     except UserDoesNotExistError:
         await interaction.followup.send(f"❌ L'utente **{username}** non esiste su Roblox.", ephemeral=True)
-    except UnauthorizedError:
+    except PermissionError:
         await interaction.followup.send("❌ Il cookie Roblox non ha i permessi per questa azione.", ephemeral=True)
     except Exception as e:
         await interaction.followup.send(f"❌ Errore imprevisto: {e}", ephemeral=True)
