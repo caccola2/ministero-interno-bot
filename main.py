@@ -142,12 +142,11 @@ async def accept_group(interaction: Interaction, username: str):
 
         client = Client(ROBLOX_COOKIE)
         group = await client.get_group(GROUP_ID)
-
         join_requests = await group.get_join_requests()
 
         join_user = None
         async for req in join_requests:
-            if req.user_id == user_id:
+            if req.user.id == user_id:  # <-- Corretto qui
                 join_user = req
                 break
 
