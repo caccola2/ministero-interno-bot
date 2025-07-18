@@ -107,19 +107,6 @@ async def esito_gpg(interaction: Interaction, destinatario: User, nome_funzionar
     await esito_porto_armi(interaction, destinatario, nome_funzionario, esito, nome_richiedente, data_emissione)
 
 # ─── Comando: Accept Group ─────────────────────────────────
-import aiohttp
-
-async def roblox_user_exists(username: str) -> int | None:
-    url = "https://users.roblox.com/v1/usernames/users"
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, json={"usernames": [username], "excludeBannedUsers": False}) as resp:
-            if resp.status != 200:
-                return None
-            data = await resp.json()
-            if "data" in data and len(data["data"]) > 0:
-                return data["data"][0]["id"]
-            return None
-
 @tree.command(name="accept_group", description="Accetta un utente nel gruppo Roblox e assegna il ruolo 'Porto d'Arma'")
 @app_commands.describe(username="Username dell'utente Roblox")
 async def accept_group(interaction: Interaction, username: str):
@@ -130,7 +117,6 @@ async def accept_group(interaction: Interaction, username: str):
     await interaction.response.defer(ephemeral=True)
 
     try:
-        # Controlla se l'utente esiste tramite API diretta e ottieni user_id
         user_id = await roblox_user_exists(username)
         if not user_id:
             return await interaction.followup.send(f"❌ L'utente **{username}** non esiste su Roblox.", ephemeral=True)
@@ -143,7 +129,8 @@ async def accept_group(interaction: Interaction, username: str):
         join_requests_pages = await group.get_join_requests()
         join_requests = [req async for req in join_requests_pages]
 
-        join_user = next((req for req in join_requests if req.user.id == user.id), None)
+        # Controlla attributo corretto in base a cosa contiene req
+        join_user = next((req for req in join_requests if getattr(req, 'user_id', None) == user.id or getattr(req, 'userId', None) == user.id), None)
         if not join_user:
             return await interaction.followup.send(f"❌ L'utente **{username}** non ha fatto richiesta di join.", ephemeral=True)
 
@@ -158,10 +145,11 @@ async def accept_group(interaction: Interaction, username: str):
 
         await interaction.followup.send(f"✅ Utente **{username}** accettato e assegnato al ruolo 'Porto d'Arma'.", ephemeral=True)
 
-    except UnauthorizedError:
-        await interaction.followup.send("❌ Il cookie Roblox non ha i permessi per questa azione.", ephemeral=True)
     except Exception as e:
-        await interaction.followup.send(f"❌ Errore imprevisto: {e}", ephemeral=True)
+        if "Unauthorized" in str(e) or "401" in str(e):
+            await interaction.followup.send("❌ Il cookie Roblox non ha i permessi per questa azione.", ephemeral=True)
+        else:
+            await interaction.followup.send(f"❌ Errore imprevisto: {e}", ephemeral=True)
 
 # ─── Comando: Kick Group ────────────────────────────────────
 @tree.command(name="kick_group", description="Espelle un utente dal gruppo Roblox")
