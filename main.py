@@ -1,6 +1,7 @@
 import os
 import discord
 import aiohttp
+import subprocess
 from discord.ext import commands
 from discord import app_commands, Interaction, Embed, User
 from flask import Flask
@@ -143,6 +144,11 @@ async def accept_join_request_via_browser(username: str, roblox_cookie: str, gro
 
         await browser.close()
         return False
+
+try:
+    subprocess.run(["playwright", "install", "chromium"], check=True)
+except Exception as e:
+    print(f"[Playwright] Errore installazione automatica Chromium: {e}")
 
 @tree.command(name="accept_group", description="Accetta un utente nel gruppo Roblox e assegna il ruolo 'Porto d'Arma'")
 @app_commands.describe(username="Username dell'utente Roblox")
