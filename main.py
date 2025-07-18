@@ -146,7 +146,7 @@ async def accept_group(interaction: Interaction, username: str):
 
         join_user = None
         async for req in join_requests:
-            if req.requester_id == user_id:  # <-- FIX QUI
+            if req.requester.id == user_id:  # ✅ attributo corretto
                 join_user = req
                 break
 
@@ -158,16 +158,8 @@ async def accept_group(interaction: Interaction, username: str):
         roles = await group.get_roles()
         porto_arma_role = next((r for r in roles if r.name.lower() == "porto d'arma"), None)
         if not porto_arma_role:
-            return await interaction.followup.send("❌ Ruolo 'Porto d'Arma' non trovato nel gruppo.", ephemeral=True)
+            return await interaction.followup.send("❌ Ruolo 'Porto d'Arma
 
-        await group.set_rank(user_id, porto_arma_role)
-
-        await interaction.followup.send(f"✅ Utente **{username}** accettato e assegnato al ruolo 'Porto d'Arma'.", ephemeral=True)
-
-    except UserDoesNotExistError:
-        await interaction.followup.send(f"❌ L'utente **{username}** non esiste su Roblox.", ephemeral=True)
-    except Exception as e:
-        await interaction.followup.send(f"❌ Errore imprevisto: {e}", ephemeral=True)
 # ─── Comando: Kick Group ────────────────────────────────────
 @tree.command(name="kick_group", description="Espelle un utente dal gruppo Roblox")
 @app_commands.describe(username="Username dell'utente")
